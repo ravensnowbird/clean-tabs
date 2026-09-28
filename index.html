@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; }
+    body { display: flex; height: 100vh; background: #1e1e2e; color: #cdd6f4; overflow: hidden; }
+
+    #sidebar {
+      width: 260px;
+      min-width: 260px;
+      background: #181825;
+      border-right: 1px solid #313244;
+      display: flex;
+      flex-direction: column;
+      padding-top: 30px; /* Inset for macOS native controls */
+    }
+
+    .section { padding: 10px; border-bottom: 1px solid #313244; }
+
+    input, button, select {
+      width: 100%;
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid #45475a;
+      background: #313244;
+      color: #fff;
+      font-size: 13px;
+    }
+    input + input, input + select, select + .form-actions { margin-top: 5px; }
+
+    button { cursor: pointer; background: #89b4fa; color: #11111b; font-weight: bold; border: none; }
+    button.secondary { background: #313244; color: #cdd6f4; border: 1px solid #45475a; }
+    button.danger { background: #f38ba8; color: #11111b; }
+    button:hover { filter: brightness(1.08); }
+
+    /* --- Toolbar --- */
+    #toolbar { display: flex; gap: 6px; }
+    #toolbar button { padding: 8px 6px; font-size: 12px; }
+
+    /* --- Inline forms --- */
+    .inline-form { display: none; }
+    .inline-form.open { display: block; }
+    .form-actions { display: flex; gap: 6px; margin-top: 6px; }
+    .form-actions button { padding: 8px 6px; font-size: 12px; }
+
+    /* --- Tab groups --- */
+    #tab-groups { flex: 1; overflow-y: auto; padding: 6px 0; }
+    .category-group { margin-bottom: 4px; }
+    .category-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #9399b2;
+      cursor: pointer;
+      user-select: none;
+    }
+    .category-header:hover { color: #cdd6f4; }
+    .category-header .chevron { transition: transform 0.15s; font-size: 10px; }
+    .category-group.collapsed .chevron { transform: rotate(-90deg); }
+    .category-header .cat-name { flex: 1; font-weight: 700; }
+    .category-header .cat-count { color: #6c7086; }
+    .category-group.collapsed .tab-group-list { display: none; }
+    .category-group.collapsed .empty-hint { display: none; }
+
+    .tab-group-list { list-style: none; }
+    .tab-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 10px 9px 24px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .tab-item:hover { background: #313244; }
+    .tab-item.active { background: #45475a; font-weight: bold; }
+    .tab-item img { width: 16px; height: 16px; border-radius: 2px; flex-shrink: 0; }
+    .tab-item span.label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tab-item .tab-edit {
+      width: auto;
+      padding: 2px 6px;
+      font-size: 12px;
+      background: transparent;
+      color: #9399b2;
+      border: none;
+      opacity: 0;
+      flex-shrink: 0;
+    }
+    .tab-item:hover .tab-edit { opacity: 1; }
+    .tab-item .tab-edit:hover { color: #cdd6f4; }
+    .empty-hint { padding: 4px 15px 8px 24px; font-size: 11px; color: #6c7086; }
+
+    /* --- Right-side search area --- */
+    #search-panel {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      background: #1e1e2e;
+      overflow: hidden;
+    }
+    #search-panel.open { display: flex; }
+    #search-panel-head {
+      padding: 40px 24px 12px;
+      font-size: 13px;
+      color: #9399b2;
+      border-bottom: 1px solid #313244;
+      -webkit-app-region: drag; /* keep window draggable in this area */
+    }
+    #search-panel-results { flex: 1; overflow-y: auto; padding: 8px 0; }
+    .result-item {
+      padding: 12px 24px;
+      cursor: pointer;
+      border-bottom: 1px solid #26263a;
+    }
+    .result-item:hover { background: #313244; }
+    .result-item .r-title { color: #f9e2af; font-weight: 600; margin-bottom: 3px; }
+    .result-item .r-url { font-size: 11px; color: #89b4fa; margin-bottom: 4px; word-break: break-all; }
+    .result-item .r-snippet { font-size: 13px; color: #bac2de; line-height: 1.4; }
+    .result-item .r-snippet b { color: #f9e2af; font-weight: 700; }
+    .result-empty { padding: 24px; color: #6c7086; text-align: center; }
+  </style>
+</head>
+<body>
+
+  <div id="sidebar">
+    <!-- Search (top) -->
+    <div class="section">
+      <input type="text" id="search-input" placeholder="Search page contents..." autocomplete="off" />
+    </div>
+
+    <!-- Toolbar -->
+    <div class="section">
+      <div id="toolbar">
+        <button id="new-tab-btn">+ Tab</button>
+        <button id="new-category-btn" class="secondary">+ Category</button>
+      </div>
+
+      <!-- New Tab form -->
+      <div class="inline-form" id="new-tab-form" style="margin-top: 8px;">
+        <input type="text" id="tab-url" placeholder="https://example.com" autocomplete="off" />
+        <input type="text" id="tab-name" placeholder="Custom Name (optional)" autocomplete="off" />
+        <input
+          type="text"
+          id="tab-extractor"
+          placeholder="Index selectors (optional, comma separated)"
+          autocomplete="off"
+        />
+        <select id="tab-category"></select>
+        <!-- NEW: per-tab extractor -->
+        <div class="form-actions">
+          <button id="add-tab-btn">Add Tab</button>
+          <button class="secondary" data-cancel="new-tab-form">Cancel</button>
+        </div>
+      </div>
+
+      <!-- New Category form -->
+      <div class="inline-form" id="new-category-form" style="margin-top: 8px;">
+        <input type="text" id="category-name" placeholder="Category name" autocomplete="off" />
+        <div class="form-actions">
+          <button id="add-category-btn">Add Category</button>
+          <button class="secondary" data-cancel="new-category-form">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Edit Tab form -->
+      <div class="inline-form" id="edit-tab-form" style="margin-top: 8px;">
+        <input type="text" id="edit-url" placeholder="https://example.com" autocomplete="off" />
+        <input type="text" id="edit-name" placeholder="Custom Name (optional)" autocomplete="off" />
+        <input
+          type="text"
+          id="edit-extractor"
+          placeholder="CSS selector(s) to index, e.g. .group\/side-pane-shell-host"
+          autocomplete="off"
+        />
+        <select id="edit-category"></select>
+        <!-- NEW: per-tab extractor -->
+        <div class="form-actions">
+          <button id="save-tab-btn">Save</button>
+          <button class="danger" id="delete-tab-btn">Delete</button>
+          <button class="secondary" data-cancel="edit-tab-form">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Grouped Tab List -->
+    <div id="tab-groups"></div>
+  </div>
+
+  <!-- Right-side search area (replaces the browser view while searching) -->
+  <div id="search-panel">
+    <div id="search-panel-head">Search results</div>
+    <div id="search-panel-results"></div>
+  </div>
+
+  <script>
+    // ---- State ----
+    const DEFAULT_CATEGORY = 'Uncategorized';
+    const categories = [DEFAULT_CATEGORY];
+    const collapsed = new Set();
+    const tabMeta = new Map(); // id -> { url, customName, defaultName, category }
+    let editingId = null;
+    let searching = false;
+    let searchSeq = 0;
+
+    // ---- Elements ----
+    const tabGroups = document.getElementById('tab-groups');
+    const searchInput = document.getElementById('search-input');
+    const searchPanel = document.getElementById('search-panel');
+    const searchPanelResults = document.getElementById('search-panel-results');
+
+    const newTabBtn = document.getElementById('new-tab-btn');
+    const newCategoryBtn = document.getElementById('new-category-btn');
+    const forms = {
+      'new-tab-form': document.getElementById('new-tab-form'),
+      'new-category-form': document.getElementById('new-category-form'),
+      'edit-tab-form': document.getElementById('edit-tab-form')
+    };
+
+    const urlInput = document.getElementById('tab-url');
+    const nameInput = document.getElementById('tab-name');
+    const categorySelect = document.getElementById('tab-category');
+    const addTabBtn = document.getElementById('add-tab-btn');
+    const extractorInput = document.getElementById('tab-extractor'); // NEW
+
+    const categoryNameInput = document.getElementById('category-name');
+    const addCategoryBtn = document.getElementById('add-category-btn');
+
+    const editUrl = document.getElementById('edit-url');
+    const editName = document.getElementById('edit-name');
+    const editExtractor = document.getElementById('edit-extractor');
+    const editCategory = document.getElementById('edit-category');
+    const saveTabBtn = document.getElementById('save-tab-btn');
+    const deleteTabBtn = document.getElementById('delete-tab-btn');
+
+    // ---- Helpers ----
+    function openForm(id) {
+      Object.values(forms).forEach(f => f.classList.remove('open'));
+      if (id) forms[id].classList.add('open');
+    }
+    function toggleForm(id) {
+      const willOpen = !forms[id].classList.contains('open');
+      openForm(willOpen ? id : null);
+      return willOpen;
+    }
+
+    function optionsHtml() {
+      return categories.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+    function refreshCategorySelects() {
+      categorySelect.innerHTML = optionsHtml();
+      editCategory.innerHTML = optionsHtml();
+    }
+
+    function slug(name) {
+      return 'cat-' + name.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+    }
+
+    function ensureCategoryGroup(name) {
+      let group = document.getElementById(slug(name));
+      if (group) return group;
+
+      group = document.createElement('div');
+      group.className = 'category-group';
+      group.id = slug(name);
+      if (collapsed.has(name)) group.classList.add('collapsed');
+
+      const header = document.createElement('div');
+      header.className = 'category-header';
+      header.innerHTML = `
+        <span class="chevron">▾</span>
+        <span class="cat-name"></span>
+        <span class="cat-count">0</span>`;
+      header.querySelector('.cat-name').textContent = name;
+      header.addEventListener('click', () => {
+        group.classList.toggle('collapsed');
+        if (group.classList.contains('collapsed')) collapsed.add(name);
+        else collapsed.delete(name);
+      });
+
+      const list = document.createElement('ul');
+      list.className = 'tab-group-list';
+
+      const hint = document.createElement('div');
+      hint.className = 'empty-hint';
+      hint.textContent = 'No tabs yet';
+
+      group.appendChild(header);
+      group.appendChild(hint);
+      group.appendChild(list);
+      tabGroups.appendChild(group);
+      return group;
+    }
+
+    function updateCount(name) {
+      if (!name) return;
+      const group = document.getElementById(slug(name));
+      if (!group) return;
+      const count = group.querySelectorAll('.tab-item').length;
+      group.querySelector('.cat-count').textContent = count;
+      group.querySelector('.empty-hint').style.display = count ? 'none' : 'block';
+    }
+
+    function addCategory(name, persist = true) {
+      const clean = name.trim();
+      if (!clean || categories.includes(clean)) return false;
+      categories.push(clean);
+      ensureCategoryGroup(clean);
+      updateCount(clean);
+      refreshCategorySelects();
+      if (persist) window.api.addCategory(clean);
+      return true;
+    }
+
+    // ---- Toolbar buttons ----
+    newTabBtn.addEventListener('click', () => {
+      refreshCategorySelects();
+      if (toggleForm('new-tab-form')) urlInput.focus();
+    });
+    newCategoryBtn.addEventListener('click', () => {
+      if (toggleForm('new-category-form')) categoryNameInput.focus();
+    });
+    document.querySelectorAll('[data-cancel]').forEach(btn => {
+      btn.addEventListener('click', () => openForm(null));
+    });
+
+    // ---- Create Category ----
+    function submitCategory() {
+      if (addCategory(categoryNameInput.value)) {
+        categoryNameInput.value = '';
+        openForm(null);
+      }
+    }
+    addCategoryBtn.addEventListener('click', submitCategory);
+    categoryNameInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitCategory(); });
+
+    // ---- Create Tab ----
+    function submitTab() {
+      const url = urlInput.value.trim();
+      if (!url) return;
+      window.api.createTab(
+        { url,
+          name: nameInput.value.trim(),
+          category: categorySelect.value || DEFAULT_CATEGORY,
+          extractor: extractorInput.value.trim() || null        // NEW
+        }
+      );
+      urlInput.value = '';
+      nameInput.value = '';
+      extractorInput.value = '';
+      openForm(null);
+    }
+    addTabBtn.addEventListener('click', submitTab);
+    nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitTab(); });
+    urlInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitTab(); });
+
+    // ---- Edit / Remove Tab ----
+    function openEditForm(id) {
+      const m = tabMeta.get(id);
+      if (!m) return;
+      editingId = id;
+      refreshCategorySelects();
+      editUrl.value = m.url || '';
+      editName.value = m.customName || '';
+      editCategory.value = m.category || DEFAULT_CATEGORY;
+      editExtractor.value = m.extractor || '';
+      openForm('edit-tab-form');
+      editUrl.focus();
+    }
+    function submitEdit() {
+      if (!editingId) return;
+      window.api.updateTab({
+        id: editingId,
+        url: editUrl.value.trim(),
+        name: editName.value.trim(),
+        category: editCategory.value || DEFAULT_CATEGORY,
+        extractor: editExtractor.value.trim() || null          // NEW
+      });
+      openForm(null);
+    }
+    saveTabBtn.addEventListener('click', submitEdit);
+    editUrl.addEventListener('keydown', e => { if (e.key === 'Enter') submitEdit(); });
+    editName.addEventListener('keydown', e => { if (e.key === 'Enter') submitEdit(); });
+    deleteTabBtn.addEventListener('click', () => {
+      if (!editingId) return;
+      const li = document.getElementById(editingId);
+      const cat = li ? li.dataset.category : null;
+      window.api.removeTab(editingId);
+      if (li) li.remove();
+      tabMeta.delete(editingId);
+      updateCount(cat);
+      editingId = null;
+      openForm(null);
+    });
+
+    // ---- Render a tab into its category group ----
+    function renderTab(tab) {
+      const category = tab.category || DEFAULT_CATEGORY;
+      if (!categories.includes(category)) addCategory(category);
+
+      const group = ensureCategoryGroup(category);
+      const list = group.querySelector('.tab-group-list');
+
+      const li = document.createElement('li');
+      li.id = tab.id;
+      li.className = 'tab-item';
+      li.dataset.category = category;
+      li.onclick = () => window.api.switchTab(tab.id);
+
+      const img = document.createElement('img');
+      img.src = tab.favicon || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"/>';
+
+      const span = document.createElement('span');
+      span.className = 'label';
+      span.textContent = tab.customName || tab.defaultName;
+      if (tab.customName) li.dataset.custom = 'true';
+
+      const editBtn = document.createElement('button');
+      editBtn.className = 'tab-edit';
+      editBtn.textContent = '✎';
+      editBtn.title = 'Edit tab';
+      editBtn.addEventListener('click', (e) => { e.stopPropagation(); openEditForm(tab.id); });
+
+      li.appendChild(img);
+      li.appendChild(span);
+      li.appendChild(editBtn);
+      list.appendChild(li);
+      updateCount(category);
+
+      tabMeta.set(tab.id, {
+        url: tab.url,
+        customName: tab.customName,
+        defaultName: tab.defaultName,
+        category,
+        extractor: tab.extractor || null                         // NEW
+      });
+    }
+
+    // ---- IPC: new tab from main ----
+    window.api.onTabCreated(renderTab);
+
+    // ---- IPC: favicon / title updates ----
+    window.api.onTabUpdated(({ id, favicon, title }) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (favicon) el.querySelector('img').src = favicon;
+      if (title && !el.dataset.custom) el.querySelector('span.label').textContent = title;
+      const m = tabMeta.get(id);
+      if (m && title && !m.customName) { m.defaultName = title; }
+    });
+
+    // ---- IPC: tab edited ----
+    window.api.onTabEdited((t) => {
+      const li = document.getElementById(t.id);
+      if (!li) return;
+      const oldCat = li.dataset.category;
+      const newCat = t.category || DEFAULT_CATEGORY;
+
+      li.querySelector('span.label').textContent = t.customName || t.defaultName;
+      if (t.customName) li.dataset.custom = 'true';
+      else delete li.dataset.custom;
+
+      if (newCat !== oldCat) {
+        if (!categories.includes(newCat)) addCategory(newCat);
+        ensureCategoryGroup(newCat).querySelector('.tab-group-list').appendChild(li);
+        li.dataset.category = newCat;
+        updateCount(oldCat);
+        updateCount(newCat);
+      }
+
+      tabMeta.set(t.id, {
+        url: t.url,
+        customName: t.customName,
+        defaultName: t.defaultName,
+        category: newCat,
+        extractor: t.extractor || null                         // NEW
+
+      });
+    });
+
+    // ---- IPC: highlight active tab ----
+    window.api.onActiveTabChanged((activeId) => {
+      document.querySelectorAll('.tab-item').forEach(el => {
+        el.classList.toggle('active', el.id === activeId);
+      });
+    });
+
+    // ---- Search area (right side) ----
+    function showSearchPanel() {
+      if (searching) return;
+      searching = true;
+      searchPanel.classList.add('open');
+      window.api.setSearchMode(true); // detach the active browser view
+    }
+    function hidePanelKeepView() {
+      // Used when a result is clicked; main reattaches the correct view itself
+      searching = false;
+      searchPanel.classList.remove('open');
+    }
+    function exitSearch() {
+      if (searching) window.api.setSearchMode(false); // reattach the previously active view
+      searching = false;
+      searchPanel.classList.remove('open');
+    }
+
+    searchInput.addEventListener('input', async (e) => {
+      const q = e.target.value.trim();
+      const seq = ++searchSeq;
+      if (!q) { exitSearch(); searchPanelResults.innerHTML = ''; return; }
+
+      showSearchPanel();
+      const results = await window.api.search(q);
+      if (seq !== searchSeq) return; // ignore stale responses
+
+      if (!results.length) {
+        searchPanelResults.innerHTML = '<div class="result-empty">No matches yet — pages are Pageed as you browse.</div>';
+        return;
+      }
+
+      searchPanelResults.innerHTML = results.map(r => `
+        <div class="result-item" data-tab="${r.tab_id || ''}" data-url="${encodeURIComponent(r.url)}">
+          <div class="r-title">${r.title || r.url}</div>
+          <div class="r-url">${r.url}</div>
+          <div class="r-snippet">${r.snippet}</div>
+        </div>
+      `).join('');
+    });
+
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { searchInput.value = ''; exitSearch(); searchPanelResults.innerHTML = ''; }
+    });
+
+    // Click a result -> open the appropriate tab and navigate to the URL
+    searchPanelResults.addEventListener('click', (e) => {
+      const item = e.target.closest('.result-item');
+      if (!item) return;
+      const url = decodeURIComponent(item.dataset.url || '');
+      const tabId = item.dataset.tab || null;
+      window.api.openUrl({ tabId, url });
+      searchInput.value = '';
+      searchSeq++;
+      searchPanelResults.innerHTML = '';
+      hidePanelKeepView();
+    });
+
+    // ---- Init: hydrate categories + tabs from persisted state ----
+    async function init() {
+      ensureCategoryGroup(DEFAULT_CATEGORY);
+      updateCount(DEFAULT_CATEGORY);
+
+      const state = await window.api.getInitialState();
+
+      (state.categories || []).forEach(name => {
+        if (!categories.includes(name)) {
+          categories.push(name);
+          ensureCategoryGroup(name);
+          updateCount(name);
+        }
+      });
+      refreshCategorySelects();
+
+      (state.tabs || []).forEach(renderTab);
+
+      if (state.tabs && state.tabs.length) {
+        window.api.switchTab(state.tabs[0].id);
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
