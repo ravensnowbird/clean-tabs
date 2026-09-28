@@ -539,9 +539,22 @@
     }
 
     // ---- Modal helpers ----
+    const openModals = new Set();
+
+    function requestViewHidden(hidden) {
+      if (window.api?.setViewHidden) {
+        window.api.setViewHidden('modal', hidden);
+      }
+    }
+
     function openModal(id) {
       const el = document.getElementById(id);
       if (!el) return;
+      // Detach the active browser view while ANY modal is open: the view is a
+      // native child composited on top of this document, so otherwise the right
+      // side of the modal would be hidden behind the browser area.
+      if (openModals.size === 0) requestViewHidden(true);
+      openModals.add(id);
       el.classList.add('open');
       el.setAttribute('aria-hidden', 'false');
     }
@@ -550,6 +563,8 @@
       if (!el) return;
       el.classList.remove('open');
       el.setAttribute('aria-hidden', 'true');
+      openModals.delete(id);
+      if (openModals.size === 0) requestViewHidden(false);
     }
 
     function escapeHtml(str) {

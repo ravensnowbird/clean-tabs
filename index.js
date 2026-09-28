@@ -7,6 +7,10 @@ let db;
 let activeTabId = null;
 const tabs = new Map(); // tabId -> { ...metadata, view }  (view is null until activated)
 const pendingIndex = new Map(); // view -> debounce timer id
+// Reasons (e.g. 'search', 'modal') why the active browser view is currently hidden.
+// A reason-based Set lets several overlays independently request the view be hidden;
+// it is reattached only when no reason remains.
+const viewHiddenReasons = new Set();
 
 const INDEX_SELECTORS = {
   // Default, hostname-based extraction rules (www. is stripped before matching).
@@ -183,6 +187,8 @@ async function indexPage(tabId, view, navigatedUrl) {
 
     const title = view.webContents.getTitle();
     let text = '';
+
+    console.log("Indexing page")
 
     // Step 1: try the selector script (if any).
     try {
@@ -459,16 +465,39 @@ ipcMain.handle('get-initial-state', () => {
   return { categories, tabs: tabList, indexSelectors: INDEX_SELECTORS };
 });
 
-// Toggle the "search area" by detaching / reattaching the active browser view
-ipcMain.on('set-search-mode', (event, on) => {
+// Manage visibility of the active browser view. A BrowserView/WebContentsView is a
+// native child of the window and is composited ON TOP of the window's own contents,
+// so it must be detached whenever an overlay (search panel or a modal) is shown,
+// otherwise the overlay is hidden behind the right-side "browser area".
+function updateViewHidden() {
   const tab = tabs.get(activeTabId);
   if (!tab || !tab.view) return;
-  if (on) {
-    mainWindow.contentView.removeChildView(tab.view);
-  } else {
-    mainWindow.contentView.addChildView(tab.view);
-    updateViewBounds(tab.view);
+  try {
+    if (viewHiddenReasons.size > 0) {
+      mainWindow.contentView.removeChildView(tab.view);
+    } else {
+      mainWindow.contentView.addChildView(tab.view);
+      updateViewBounds(tab.view);
+    }
+  } catch (err) {
+    console.error('[main] failed to toggle browser view:', err);
   }
+}
+
+function setViewHidden(reason, hidden) {
+  if (hidden) viewHiddenReasons.add(reason);
+  else viewHiddenReasons.delete(reason);
+  updateViewHidden();
+}
+
+// Overlay control channel used by the renderer (search panel + modals).
+ipcMain.on('set-view-hidden', (event, { reason, hidden }) => {
+  setViewHidden(reason, hidden);
+});
+
+// Legacy bridge kept for the renderer's existing search-mode calls.
+ipcMain.on('set-search-mode', (event, on) => {
+  setViewHidden('search', on);
 });
 
 // Open a search result: activate the appropriate tab and navigate it to the URL
