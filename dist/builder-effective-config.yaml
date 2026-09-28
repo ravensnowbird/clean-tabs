@@ -55,5 +55,5 @@ linux:
     - deb
   category: Utility
   icon: build/icons
-  maintainer: you@example.com
+  maintainer: hello@viveksampara.com
 electronVersion: 44.4.5
