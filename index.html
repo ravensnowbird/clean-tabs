@@ -122,6 +122,138 @@
     .result-item .r-snippet { font-size: 13px; color: #bac2de; line-height: 1.4; }
     .result-item .r-snippet b { color: #f9e2af; font-weight: 700; }
     .result-empty { padding: 24px; color: #6c7086; text-align: center; }
+
+    /* --- Sidebar footer (under the tabs list) --- */
+    #sidebar-footer {
+      border-top: 1px solid #313244;
+      padding: 8px 10px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .footer-row { display: flex; gap: 6px; }
+    .footer-row button { flex: 1; font-size: 12px; }
+
+    /* --- Modals --- */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.62);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-dialog {
+      background: #181825;
+      border: 1px solid #313244;
+      border-radius: 8px;
+      width: min(860px, calc(100vw - 40px));
+      max-height: calc(100vh - 60px);
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.45);
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid #313244;
+      -webkit-app-region: drag;
+    }
+    .modal-header h3 { font-size: 14px; color: #cdd6f4; margin: 0; font-weight: 700; }
+    .modal-close {
+      background: transparent;
+      color: #9399b2;
+      border: none;
+      width: auto;
+      padding: 0 6px;
+      font-size: 20px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .modal-close:hover { color: #f38ba8; background: transparent; filter: none; }
+    .modal-body { padding: 0; overflow: hidden; display: flex; flex-direction: column; min-height: 140px; }
+    .modal-content { padding: 16px; overflow-y: auto; flex: 1; }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 12px 16px;
+      border-top: 1px solid #313244;
+      flex-shrink: 0;
+    }
+    .modal-actions button { width: auto; padding: 7px 14px; font-size: 12px; }
+    .modal-actions .hint {
+      align-self: center;
+      margin-right: auto;
+      font-size: 11px;
+      color: #6c7086;
+    }
+
+    /* --- Index Log table --- */
+    .log-table-wrap { overflow-x: auto; }
+    .log-table { width: 100%; border-collapse: collapse; font-size: 12px; white-space: nowrap; }
+    .log-table th,
+    .log-table td {
+      border: 1px solid #313244;
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    .log-table th {
+      background: #26263a;
+      color: #f9e2af;
+      font-weight: 700;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .log-table tr:nth-child(even) td { background: #1e1e2e; }
+    .log-table tr:hover td { background: #313244; }
+    .log-table tr.is-empty { outline: 2px solid #f38ba8; outline-offset: -2px; }
+    .log-table td.code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 11px;
+      word-break: break-all;
+      white-space: normal;
+      max-width: 260px;
+    }
+    .log-table .col-length { text-align: right; }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .badge.badge-empty { background: #f38ba8; color: #11111b; }
+    .badge.badge-ok { background: #a6e3a1; color: #11111b; }
+    .log-no-entries { padding: 40px 20px; text-align: center; color: #6c7086; }
+
+    /* --- Known extractors list --- */
+    .known-list { list-style: none; }
+    .known-item {
+      padding: 10px 14px;
+      border-bottom: 1px solid #26263a;
+      font-size: 12px;
+    }
+    .known-item:last-child { border-bottom: none; }
+    .known-item .k-key {
+      color: #89b4fa;
+      font-weight: 700;
+      margin-bottom: 4px;
+      word-break: break-all;
+    }
+    .known-item .k-sel {
+      color: #bac2de;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 11px;
+    }
+    .known-empty { padding: 30px 20px; text-align: center; color: #6c7086; }
   </style>
 </head>
 <body>
@@ -188,12 +320,79 @@
 
     <!-- Grouped Tab List -->
     <div id="tab-groups"></div>
+
+    <!-- Footer actions under the tabs list -->
+    <div id="sidebar-footer">
+      <div class="footer-row">
+        <button id="bug-report-btn" class="secondary">Report a Bug</button>
+        <button id="donate-btn" class="secondary">Donate</button>
+      </div>
+      <div class="footer-row">
+        <button id="index-log-btn" class="secondary">Index Log</button>
+        <button id="known-extractors-btn" class="secondary">Known Extractors</button>
+      </div>
+    </div>
   </div>
 
   <!-- Right-side search area (replaces the browser view while searching) -->
   <div id="search-panel">
     <div id="search-panel-head">Search results</div>
     <div id="search-panel-results"></div>
+  </div>
+
+  <!-- Index Log modal (unpersistant, kept only for the current session) -->
+  <div id="index-log-modal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="index-log-title">
+      <div class="modal-header">
+        <h3 id="index-log-title">Index Log Report</h3>
+        <button class="modal-close" data-close-modal aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-content">
+          <div class="log-table-wrap">
+            <table class="log-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Page</th>
+                  <th>URL</th>
+                  <th>Selectors Used</th>
+                  <th>Source</th>
+                  <th class="col-length">Length</th>
+                  <th>Status</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody id="index-log-body"></tbody>
+            </table>
+          </div>
+          <div id="index-log-empty" class="log-no-entries">No index events recorded yet. Logs are kept only for this session and are never persisted.</div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <span class="hint">Tip: click a URL cell to copy it to the clipboard.</span>
+        <button id="clear-log-btn" class="danger">Clear Log</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Known URLs & Extractor Selectors modal -->
+  <div id="known-extractors-modal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="known-extractors-title">
+      <div class="modal-header">
+        <h3 id="known-extractors-title">Known URLs &amp; Extractor Selectors</h3>
+        <button class="modal-close" data-close-modal aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-content">
+          <ul id="known-extractors-list" class="known-list"></ul>
+          <div id="known-extractors-empty" class="known-empty">No built-in extractor mappings are configured.</div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <span class="hint">Override or extend these per tab using the Edit Tab dialog (wrench icon).</span>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -205,6 +404,11 @@
     let editingId = null;
     let searching = false;
     let searchSeq = 0;
+
+    // Unpersistant (per-session) log of index events, surfaced by the Index Log report.
+    const indexLogs = [];
+    const shownEmptyFor = new Set(); // URLs already surfaced via auto-modal this session
+    let indexSelectorsState = {};   // seeded from the main process on init
 
     // ---- Elements ----
     const tabGroups = document.getElementById('tab-groups');
@@ -235,6 +439,25 @@
     const editCategory = document.getElementById('edit-category');
     const saveTabBtn = document.getElementById('save-tab-btn');
     const deleteTabBtn = document.getElementById('delete-tab-btn');
+
+    // Footer buttons
+    const bugReportBtn = document.getElementById('bug-report-btn');
+    const donateBtn = document.getElementById('donate-btn');
+    const indexLogBtn = document.getElementById('index-log-btn');
+    const knownExtractorsBtn = document.getElementById('known-extractors-btn');
+    const clearLogBtn = document.getElementById('clear-log-btn');
+    const indexLogModal = document.getElementById('index-log-modal');
+    const knownExtractorsModal = document.getElementById('known-extractors-modal');
+
+    // TODO: replace these with your real links.
+    const GITHUB_ISSUES_URL = 'https://github.com/YOUR_USERNAME/YOUR_REPO/issues/new';
+    const DONATE_URL = 'https://github.com/sponsors/YOUR_USERNAME';
+
+    // Mirror of the INDEX_SELECTORS map from the main process (used as a fallback if the
+    // bridge does not expose them).
+    const KNOWN_EXTRACTORS_FALLBACK = {
+      'chatgpt.com': ['.group\\/side-pane-shell-host']
+    };
 
     // ---- Helpers ----
     function openForm(id) {
@@ -313,6 +536,96 @@
       refreshCategorySelects();
       if (persist) window.api.addCategory(clean);
       return true;
+    }
+
+    // ---- Modal helpers ----
+    function openModal(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.add('open');
+      el.setAttribute('aria-hidden', 'false');
+    }
+    function closeModal(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.remove('open');
+      el.setAttribute('aria-hidden', 'true');
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function shorten(url, n = 42) {
+      url = String(url);
+      return url.length > n ? url.slice(0, n) + '\u2026' : url;
+    }
+
+    // Render the unpersistant index log table (most recent first).
+    function renderIndexLogTable() {
+      const tbody = document.getElementById('index-log-body');
+      const emptyEl = document.getElementById('index-log-empty');
+      if (!indexLogs.length) {
+        tbody.innerHTML = '';
+        emptyEl.style.display = 'block';
+        return;
+      }
+      emptyEl.style.display = 'none';
+      const rows = indexLogs.slice().reverse().map(l => {
+        const pageLabel = (l.title && l.title !== l.url) ? l.title : shorten(l.url, 28);
+        const sels = (l.selectors && l.selectors.length) ? l.selectors.join(', ') : '\u2014';
+        const notes = (l.warnings && l.warnings.length)
+          ? l.warnings.join('; ')
+          : (l.empty ? '' : 'OK');
+        return `<tr class="${l.empty ? 'is-empty' : ''}">
+          <td>${escapeHtml(formatTime(l.timestamp))}</td>
+          <td class="code" title="${escapeHtml(pageLabel)}">${escapeHtml(pageLabel)}</td>
+          <td class="code"><a href="#" data-log-url="${escapeHtmlAttr(l.url)}" title="${escapeHtmlAttr(l.url)}">${shorten(l.url)}</a></td>
+          <td class="code">${escapeHtml(sels)}</td>
+          <td>${escapeHtml(l.source || '')}</td>
+          <td class="col-length">${typeof l.contentLength === 'number' ? l.contentLength.toLocaleString() : '\u2014'}</td>
+          <td>${l.empty ? '<span class="badge badge-empty">EMPTY</span>' : '<span class="badge badge-ok">OK</span>'}</td>
+          <td class="code">${escapeHtml(notes)}</td>
+        </tr>`;
+      }).join('');
+      tbody.innerHTML = rows;
+    }
+
+    function formatTime(ts) {
+      return new Date(ts).toLocaleTimeString();
+    }
+
+    function escapeHtmlAttr(str) {
+      return String(str).replace(/"/g, '&quot;');
+    }
+
+    // Render the known URLs / extractor selectors list.
+    function renderKnownExtractors() {
+      const ul = document.getElementById('known-extractors-list');
+      const emptyEl = document.getElementById('known-extractors-empty');
+      const map = indexSelectorsState && Object.keys(indexSelectorsState).length
+        ? indexSelectorsState
+        : KNOWN_EXTRACTORS_FALLBACK;
+      const keys = Object.keys(map);
+      if (!keys.length) {
+        ul.innerHTML = '';
+        emptyEl.style.display = 'block';
+        return;
+      }
+      emptyEl.style.display = 'none';
+      ul.innerHTML = keys.map(k => {
+        const v = map[k];
+        const sels = Array.isArray(v) ? v : [v];
+        return `<li class="known-item">
+          <div class="k-key">${escapeHtml(k)}</div>
+          <div class="k-sel">${sels.map(s => escapeHtml(String(s))).join('<br/>')}</div>
+        </li>`;
+      }).join('');
     }
 
     // ---- Toolbar buttons ----
@@ -420,7 +733,7 @@
 
       const editBtn = document.createElement('button');
       editBtn.className = 'tab-edit';
-      editBtn.textContent = '✎';
+      editBtn.textContent = '\u270e';
       editBtn.title = 'Edit tab';
       editBtn.addEventListener('click', (e) => { e.stopPropagation(); openEditForm(tab.id); });
 
@@ -516,7 +829,7 @@
       if (seq !== searchSeq) return; // ignore stale responses
 
       if (!results.length) {
-        searchPanelResults.innerHTML = '<div class="result-empty">No matches yet — pages are Pageed as you browse.</div>';
+        searchPanelResults.innerHTML = '<div class="result-empty">No matches yet \u2014 pages are indexed as you browse.</div>';
         return;
       }
 
@@ -546,6 +859,78 @@
       hidePanelKeepView();
     });
 
+    // ---- Footer actions ----
+    if (bugReportBtn) {
+      bugReportBtn.addEventListener('click', () => {
+        if (window.api?.openExternal) {
+          window.api.openExternal(GITHUB_ISSUES_URL);
+        } else {
+          window.open(GITHUB_ISSUES_URL, '_blank', 'noopener,noreferrer');
+        }
+      });
+    }
+    if (donateBtn) {
+      donateBtn.addEventListener('click', () => {
+        if (window.api?.openExternal) {
+          window.api.openExternal(DONATE_URL);
+        } else {
+          window.open(DONATE_URL, '_blank', 'noopener,noreferrer');
+        }
+      });
+    }
+    if (indexLogBtn) {
+      indexLogBtn.addEventListener('click', () => { renderIndexLogTable(); openModal('index-log-modal'); });
+    }
+    if (knownExtractorsBtn) {
+      knownExtractorsBtn.addEventListener('click', () => { renderKnownExtractors(); openModal('known-extractors-modal'); });
+    }
+    if (clearLogBtn) {
+      clearLogBtn.addEventListener('click', () => { indexLogs.length = 0; renderIndexLogTable(); });
+    }
+
+    // Close modals via close button or backdrop click
+    document.addEventListener('click', (e) => {
+      if (e.target.matches('[data-close-modal]')) {
+        document.querySelectorAll('.modal-overlay.open').forEach(m => closeModal(m.id));
+      }
+    });
+    if (indexLogModal) {
+      indexLogModal.addEventListener('click', (e) => { if (e.target === indexLogModal) closeModal('index-log-modal'); });
+    }
+    if (knownExtractorsModal) {
+      knownExtractorsModal.addEventListener('click', (e) => { if (e.target === knownExtractorsModal) closeModal('known-extractors-modal'); });
+    }
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-overlay.open').forEach(m => closeModal(m.id));
+      }
+    });
+
+    // Clicking a URL cell copies the full URL to the clipboard.
+    document.addEventListener('click', (e) => {
+      const anchor = e.target.closest('[data-log-url]');
+      if (anchor) {
+        e.preventDefault();
+        if (navigator.clipboard?.writeText) {
+          navigator.clipboard.writeText(anchor.dataset.logUrl);
+        }
+      }
+    });
+
+    // ---- IPC: index results (unpersistant, per-session log) ----
+    if (window.api?.onIndexResult) {
+      window.api.onIndexResult((log) => {
+        indexLogs.push({ ...log });
+        renderIndexLogTable();
+        // Auto-open the log report the first time a given URL comes back EMPTY.
+        if (log.empty && !shownEmptyFor.has(log.url)) {
+          shownEmptyFor.add(log.url);
+          renderIndexLogTable();
+          openModal('index-log-modal');
+        }
+      });
+    }
+
     // ---- Init: hydrate categories + tabs from persisted state ----
     async function init() {
       ensureCategoryGroup(DEFAULT_CATEGORY);
@@ -560,6 +945,9 @@
           updateCount(name);
         }
       });
+      if (state && state.indexSelectors) {
+        indexSelectorsState = state.indexSelectors;
+      }
       refreshCategorySelects();
 
       (state.tabs || []).forEach(renderTab);

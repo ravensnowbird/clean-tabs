@@ -1,4 +1,4 @@
-const { app, BrowserWindow, WebContentsView, ipcMain } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, shell } = require('electron');
 const path = require('path');
 const Database = require('better-sqlite3');
 
@@ -6,18 +6,17 @@ let mainWindow;
 let db;
 let activeTabId = null;
 const tabs = new Map(); // tabId -> { ...metadata, view }  (view is null until activated)
-// new
-const pendingIndex = new Map(); // view -> debounce timer
+const pendingIndex = new Map(); // view -> debounce timer id
 
 const INDEX_SELECTORS = {
+  // Default, hostname-based extraction rules (www. is stripped before matching).
+  // A per-tab extractor set in the Edit Tab dialog always takes precedence.
   // Example: for chatgpt.com, only index the side-pane host element.
-  // Adjust the selector to whatever you confirm in DevTools.
   'chatgpt.com': ['.group\\/side-pane-shell-host'],
 
   // Example: a specific tab id that should index only certain containers:
   // 'tab-1727000000000': ['#main-content', '#sidebar']
 };
-
 
 
 // Initialize SQLite with Full-Text Search (FTS5) + persistence tables
@@ -121,18 +120,6 @@ function getIndexSelectors(tabId, url) {
   }
 }
 
-// Build a JS snippet that gathers innerText/textContent from all matches.
-// function buildSelectorScript(selectors) {
-//   const list = Array.isArray(selectors) ? selectors : [selectors];
-//   const parts = list.map((sel) =>
-//     `Array.from(document.querySelectorAll(${JSON.stringify(sel)}))` +
-//     `.map(function(e){return typeof e.innerText==='string'?e.innerText:(e.textContent||'')})` +
-//     `.join('\\n')`
-//   );
-//   // If multiple selectors, join them with a blank line between groups
-//   return parts.join(" + '\\n\\n' + ");
-// }
-
 
 function buildSelectorScript(selectors) {
   const list = Array.isArray(selectors) ? selectors : [selectors];
@@ -155,85 +142,142 @@ function buildSelectorScript(selectors) {
 })()`;
 }
 
-// Index the currently loaded page of a tab (keyed by URL so history is preserved)
-// function indexPage(tabId, view) {
-//   try {
-//     const url = view.webContents.getURL();
-//     if (!url || url === 'about:blank') return;
-//     const title = view.webContents.getTitle();
-//     view.webContents.executeJavaScript('document.body.innerText').then(text => {
-//       console.log("innertext", text);
-//       db.prepare('INSERT OR REPLACE INTO pages (url, tab_id, title, content) VALUES (?, ?, ?, ?)')
-//         .run(url, tabId, title, text);
-//       db.prepare('DELETE FROM pages_fts WHERE url = ?').run(url);
-//       db.prepare('INSERT INTO pages_fts (tab_id, url, title, content) VALUES (?, ?, ?, ?)')
-//         .run(tabId, url, title, text);
-//     }).catch(err => console.error('Indexing failed:', err));
-//   } catch (err) {
-//     console.error('Indexing failed:', err);
-//   }
-// }
-// Index the currently loaded page of a tab (keyed by URL so history is preserved)
-function indexPage(tabId, view, navigatedUrl) {
-  console.log("starting-index")
+
+// Index the currently loaded page of a tab (keyed by URL so history is preserved).
+// Extraction order / fallback chain:
+//   1) explicit per-tab extractor (stored in DB)
+//   2) default hostname-based selectors from INDEX_SELECTORS
+//   3) full page body via document.body.innerText (guaranteed fallback)
+// The renderer is notified of every index event so it can keep an unpersistant log
+// and surface a report when content comes back empty.
+async function indexPage(tabId, view, navigatedUrl) {
+  console.log('[indexer] starting-index');
+  const warnings = [];
   try {
     const url = navigatedUrl || view.webContents.getURL();
-    if (!url || url === 'about:blank') return;
+    if (!url || url === 'about:blank') {
+      return { empty: false, url, warnings, stale: false };
+    }
 
     const tab = tabs.get(tabId);
-    const raw = tab?.extractor;
-    let js = 'document.body.innerText';
-    if (raw && raw.trim()) {
-      const selectors = raw.split(',').map(s => s.trim()).filter(Boolean);
-      if (selectors.length) js = buildSelectorScript(selectors);
+    const explicitRaw = tab?.extractor;
+
+    let selectors = null;
+    let source = 'full-page';
+
+    if (explicitRaw && explicitRaw.trim()) {
+      selectors = explicitRaw.split(',').map(s => s.trim()).filter(Boolean);
+      source = 'per-tab-selectors';
+    } else {
+      const defaults = getIndexSelectors(tabId, url);
+      if (defaults && defaults.length) {
+        selectors = Array.isArray(defaults) ? defaults : [defaults];
+        source = 'default-selectors';
+      }
     }
+
+    let js = 'document.body.innerText';
+    if (selectors && selectors.length) {
+      js = buildSelectorScript(selectors);
+    }
+
     const title = view.webContents.getTitle();
-    // view.webContents.executeJavaScript('document.body.innerText').then(text => {
-    view.webContents.executeJavaScript(js).then(text => {
+    let text = '';
+
+    // Step 1: try the selector script (if any).
+    try {
+      const extracted = await view.webContents.executeJavaScript(js);
+      text = typeof extracted === 'string' ? extracted : '';
+    } catch (err) {
+      warnings.push(`Extraction failed: ${err && err.message ? err.message : err}`);
+      if (selectors && selectors.length) {
+        warnings.push('Selector script errored; retrying with full page body');
+      }
+    }
+
+    // FALLBACK: if a selector script was used and produced nothing, grab the whole
+    // page body. This fixes the case where an over-specific/broken selector (or a
+    // page whose DOM structure changed) would previously leave the page unindexed.
+    if (selectors && selectors.length && !text.trim()) {
+      warnings.push(`Selector extraction returned empty (${selectors.length} selector(s) matched no usable text); falling back to document.body.innerText`);
+      source = 'full-page-fallback';
+      try {
+        const full = await view.webContents.executeJavaScript('document.body.innerText');
+        text = typeof full === 'string' ? full : '';
+      } catch (e) {
+        warnings.push(`Fallback to full page also failed: ${e && e.message ? e.message : e}`);
+      }
+    }
+
     // Guard: if the view navigated away while extraction was running, skip the stale write.
-      if (view.webContents.getURL() !== url) return;
-      console.log(text)
-      db.prepare('INSERT OR REPLACE INTO pages (url, tab_id, title, content) VALUES (?, ?, ?, ?)')
-        .run(url, tabId, title, text);
-      db.prepare('DELETE FROM pages_fts WHERE url = ?').run(url);
-      db.prepare('INSERT INTO pages_fts (tab_id, url, title, content) VALUES (?, ?, ?, ?)')
-        .run(tabId, url, title, text);
-    }).catch(err => console.error('Indexing failed:', err));
+    if (view.webContents.getURL() !== url) {
+      warnings.push('URL changed during extraction; skipped stale write');
+      return { empty: false, url, warnings, stale: true };
+    }
+
+    db.prepare('INSERT OR REPLACE INTO pages (url, tab_id, title, content) VALUES (?, ?, ?, ?)')
+      .run(url, tabId, title, text);
+    db.prepare('DELETE FROM pages_fts WHERE url = ?').run(url);
+    db.prepare('INSERT INTO pages_fts (tab_id, url, title, content) VALUES (?, ?, ?, ?)')
+      .run(tabId, url, title, text);
+
+    const empty = !text.trim();
+    if (empty) {
+      warnings.push('Indexed content is empty even after trying the full page body');
+    }
+
+    // Notify the renderer of this (unpersistant) index event.
+    const payload = {
+      tabId,
+      url,
+      title: title || '',
+      selectors: selectors || [],
+      source,
+      contentLength: text.length,
+      empty,
+      warnings,
+      timestamp: Date.now(),
+    };
+    try {
+      mainWindow.webContents.send('index-result', payload);
+    } catch (e) {
+      console.error('[indexer] failed to send index-result:', e);
+    }
+
+    console.log('[indexer] indexed', url, '| selectors:', source, '| length:', text.length);
+    return { empty, url, warnings, stale: false };
   } catch (err) {
-    console.error('Indexing failed:', err);
+    console.error('[indexer] Indexing failed:', err);
+    return { empty: true, url: navigatedUrl, warnings: [err && err.message ? err.message : String(err)] };
   }
 }
 
-// Debounce rapid/SPA navigations so we index the final rendered content, not the in-between state
-function scheduleIndex(tabId, view, url) {
+
+// Debounced indexing for SPA / progressively loaded pages. Also retries a couple
+// of times when a page keeps coming back EMPTY, giving slow pages more time to
+// render their content before the fallback is considered final.
+async function scheduleIndex(tabId, view, url, attempt = 1) {
   if (pendingIndex.has(view)) clearTimeout(pendingIndex.get(view));
+  const delay = attempt === 1 ? 1000 : 2500;
   pendingIndex.set(
     view,
-    setTimeout(() => {
+    setTimeout(async () => {
       pendingIndex.delete(view);
       if (typeof view.isDestroyed === 'function' && view.isDestroyed()) return;
-      indexPage(tabId, view, url);
-    }, 1000),
-
-    setTimeout(() => {
-      pendingIndex.delete(view);
-      if (typeof view.isDestroyed === 'function' && view.isDestroyed()) return;
-      indexPage(tabId, view, url);
-    }, 2000),
-
-    setTimeout(() => {
-      pendingIndex.delete(view);
-      if (typeof view.isDestroyed === 'function' && view.isDestroyed()) return;
-      indexPage(tabId, view, url);
-    }, 3000),
-
-    setTimeout(() => {
-      pendingIndex.delete(view);
-      if (typeof view.isDestroyed === 'function' && view.isDestroyed()) return;
-      indexPage(tabId, view, url);
-    }, 4000),
+      if (view.webContents.getURL() !== url) return;
+      let outcome = { empty: false };
+      try {
+        outcome = await indexPage(tabId, view, url) || { empty: false };
+      } catch (err) {
+        console.error('[indexer] scheduleIndex error:', err);
+      }
+      if (outcome.empty && attempt < 3 && !(typeof view.isDestroyed === 'function' && view.isDestroyed())) {
+        scheduleIndex(tabId, view, url, attempt + 1);
+      }
+    }, delay),
   );
 }
+
 
 // Lazily build the WebContentsView for a tab (used on create and on first activation)
 function createTabView(tabId) {
@@ -273,7 +317,7 @@ function createTabView(tabId) {
 }
 
 // Register IPC Listeners
-ipcMain.on('create-tab', (event, { url, name, category, extractor  }) => {
+ipcMain.on('create-tab', (event, { url, name, category, extractor }) => {
   const tabId = `tab-${Date.now()}`;
   let initialUrl = url.startsWith('http') ? url : `https://${url}`;
 
@@ -333,7 +377,7 @@ ipcMain.on('update-tab', (event, { id, url, name, category, extractor }) => {
   tab.url = newUrl;
   tab.customName = name && name.trim() ? name.trim() : null;
   tab.category = category || 'Uncategorized';
-  tab.extractor = extractor !== undefined ? (extractor || null) : tab.extractor; // NEW
+  tab.extractor = extractor !== undefined ? (extractor || null) : tab.extractor;
 
   if (urlChanged) {
     try {
@@ -389,7 +433,18 @@ ipcMain.on('add-category', (event, name) => {
   db.prepare('INSERT OR IGNORE INTO categories (name, position) VALUES (?, ?)').run(clean, position);
 });
 
-// Provide saved categories + tabs to the renderer on startup
+// Open an external URL in the system's default browser (footer links).
+ipcMain.handle('open-external', (event, url) => {
+  try {
+    const parsed = new URL(url);
+    if (!/^https?:$/.test(parsed.protocol)) return false;
+    return shell.openExternal(parsed.toString());
+  } catch {
+    return false;
+  }
+});
+
+// Provide saved categories + tabs (+ the built-in extractor map) to the renderer on startup.
 ipcMain.handle('get-initial-state', () => {
   const categories = db.prepare('SELECT name FROM categories ORDER BY position ASC').all().map(r => r.name);
   const tabList = Array.from(tabs.values()).map(t => ({
@@ -401,7 +456,7 @@ ipcMain.handle('get-initial-state', () => {
     favicon: t.favicon,
     extractor: t.extractor
   }));
-  return { categories, tabs: tabList };
+  return { categories, tabs: tabList, indexSelectors: INDEX_SELECTORS };
 });
 
 // Toggle the "search area" by detaching / reattaching the active browser view
