@@ -94,9 +94,7 @@
       ],
       "category": "Utility",
       "icon": "build/icons",
-      "maintainer": "hello@viveksampara.com",
-      "desktopName": "clean-tabs.desktop",
-      "syncDesktopName": true
+      "maintainer": "hello@viveksampara.com"
     }
   },
   "dependencies": {
