@@ -87,7 +87,6 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
-    titleBarStyle: 'hiddenInset',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -155,7 +154,6 @@ function buildSelectorScript(selectors) {
 // The renderer is notified of every index event so it can keep an unpersistant log
 // and surface a report when content comes back empty.
 async function indexPage(tabId, view, navigatedUrl) {
-  console.log('[indexer] starting-index');
   const warnings = [];
   try {
     const url = navigatedUrl || view.webContents.getURL();
@@ -187,8 +185,6 @@ async function indexPage(tabId, view, navigatedUrl) {
 
     const title = view.webContents.getTitle();
     let text = '';
-
-    console.log("Indexing page")
 
     // Step 1: try the selector script (if any).
     try {
@@ -262,7 +258,7 @@ async function indexPage(tabId, view, navigatedUrl) {
 // Debounced indexing for SPA / progressively loaded pages. Also retries a couple
 // of times when a page keeps coming back EMPTY, giving slow pages more time to
 // render their content before the fallback is considered final.
-async function scheduleIndex(tabId, view, url, attempt = 1) {
+async function scheduleIndex(tabId, view, attempt = 1) {
   if (pendingIndex.has(view)) clearTimeout(pendingIndex.get(view));
   const delay = attempt === 1 ? 1000 : 2500;
   pendingIndex.set(
@@ -270,7 +266,7 @@ async function scheduleIndex(tabId, view, url, attempt = 1) {
     setTimeout(async () => {
       pendingIndex.delete(view);
       if (typeof view.isDestroyed === 'function' && view.isDestroyed()) return;
-      if (view.webContents.getURL() !== url) return;
+      url = view.webContents.getURL()
       let outcome = { empty: false };
       try {
         outcome = await indexPage(tabId, view, url) || { empty: false };
@@ -316,7 +312,7 @@ function createTabView(tabId) {
 
   // Re-index on every completed navigation (i.e. every URL clicked within the tab)
   view.webContents.on('did-stop-loading', (event, url) => {
-    scheduleIndex(tabId, view, url);
+    scheduleIndex(tabId, view);
   });
 
   return view;

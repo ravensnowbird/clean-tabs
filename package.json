@@ -1,18 +1,110 @@
 {
   "name": "clean-tabs",
   "version": "1.0.0",
-  "description": "",
+  "description": "Clean Browser Tabs",
   "main": "index.js",
+  "author": "Vivek Sampara <hello@viveksampara.com>",
+  "license": "MIT",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "clean": "rimraf dist",
+    "build": "npm run clean && electron-builder --publish never",
+    "build:mac": "npm run clean && electron-builder --mac --publish never",
+    "build:win": "npm run clean && electron-builder --win --publish never",
+    "build:linux": "npm run clean && electron-builder --linux --publish never",
+    "build:all": "npm run clean && electron-builder -mwl --publish never"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
+  "build": {
+    "appId": "com.personal.cleantabs",
+    "productName": "CleanTabs",
+    "asar": true,
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "index.js",
+      "index.html",
+      "preload.js",
+      "page-preload.js",
+      "AILinks.md",
+      "package.json",
+      "!**/*.map",
+      "!node_modules/.cache"
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.icns",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false
+    },
+    "dmg": {
+      "title": "CleanTabs ${version}",
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "CleanTabs"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility",
+      "icon": "build/icons",
+      "maintainer": "you@example.com"
+    }
+  },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
-    "better-sqlite3": "^13.0.3",
-    "electron": "^44.4.5"
+    "better-sqlite3": "^13.0.3"
+  },
+  "devDependencies": {
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3",
+    "electron-icon-builder": "^2.0.1",
+    "rimraf": "^6.0.0"
   }
 }

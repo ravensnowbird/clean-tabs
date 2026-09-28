@@ -1,0 +1,17 @@
+https://chatgpt.com/c/6ab34cee-6aa8-83ec-aa01-f7bbf0f9f3fe
+https://claude.ai/chat/38329fc7-85f3-41c1-a884-2d3514259c8c
+https://gemini.google.com/app/a7b67bf94a5bd7ef
+https://www.meta.ai/prompt/b7f416c2-e6ae-48cd-b5ab-a11c4b7f60c4
+https://chat.deepseek.com/a/chat/s/da7609c6-cfe5-4de5-91e3-8d2f5b84a725
+https://aistudio.xiaomimimo.com/#/c
+https://chat.z.ai/c/b68979d0-4c09-4276-8101-793bb3e7d435
+https://ai.byteplus.com/en/playground/model/59637360590156530
+https://www.apodex.ai/chat/3903fc06-84cf-46a1-b87b-6974b3f947ca
+https://jp-tok.dataplatform.cloud.ibm.com/wx/prompts?context=wx&project_id=39c203ca-b638-4be1-88ec-23496529ec32
+https://aistudio.tencent.ai/?lang=eh&utm_source=hy
+https://openrouter.ai/chat
+https://aistudio.tencent.ai/chat/HunyuanDefault/dapqnq42c3m977va1vpg?modelId=hy4-preview-g
+https://chat.poolside.ai/c/iXWaKhbcsnPj3grti9Sb88Wi
+https://console.mistral.ai/build/playground?conversationId=conv_01a0cde206987759af584c67c958205a
+https://playground.liquid.ai/chat?model=cmspdsnbe000004lc90z967pv
+https://huggingface.co/chat/conversation/6ab3b09435b89f5728eed668

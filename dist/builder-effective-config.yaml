@@ -1,0 +1,59 @@
+directories:
+  output: dist
+  buildResources: build
+appId: com.personal.cleantabs
+productName: CleanTabs
+asar: true
+files:
+  - filter:
+      - index.js
+      - index.html
+      - preload.js
+      - page-preload.js
+      - AILinks.md
+      - package.json
+      - '!**/*.map'
+      - '!node_modules/.cache'
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+    - target: zip
+      arch:
+        - x64
+        - arm64
+  category: public.app-category.productivity
+  icon: build/icon.icns
+  hardenedRuntime: true
+  gatekeeperAssess: false
+dmg:
+  title: CleanTabs ${version}
+  contents:
+    - x: 130
+      'y': 220
+    - x: 410
+      'y': 220
+      type: link
+      path: /Applications
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: CleanTabs
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Utility
+  icon: build/icons
+  maintainer: you@example.com
+electronVersion: 44.4.5
