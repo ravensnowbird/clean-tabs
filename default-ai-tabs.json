@@ -1,0 +1,82 @@
+[
+  {
+    "name": "ChatGPT",
+    "url": "https://chatgpt.com",
+    "extractor": [".group\\/side-pane-shell-host"]
+  },
+  {
+    "name": "Claude",
+    "url": "https://claude.ai",
+    "extractor": [".dframe-pane.dframe-pane-primary"]
+  },
+  {
+    "name": "Gemini",
+    "url": "https://gemini.google.com",
+    "extractor": [".main-content"]
+  },
+  {
+    "name": "Meta",
+    "url": "https://www.meta.ai",
+    "extractor": ["main"]
+  },
+  {
+    "name": "DeepSeek",
+    "url": "https://chat.deepseek.com",
+    "extractor": []
+  },
+  {
+    "name": "Xiaomimimo",
+    "url": "https://aistudio.xiaomimimo.com",
+    "extractor": [".bg-mimo-bg-concent-base"]
+  },
+  {
+    "name": "Z AI",
+    "url": "https://chat.z.ai",
+    "extractor": ["#chat-container"]
+  },
+  {
+    "name": "BytePlus",
+    "url": "https://ai.byteplus.com",
+    "extractor": []
+  },
+  {
+    "name": "Apodex",
+    "url": "https://www.apodex.ai",
+    "extractor": [".font-reading"]
+  },
+  {
+    "name": "IBM Watson",
+    "url": "https://jp-tok.dataplatform.cloud.ibm.com",
+    "extractor": []
+  },
+  {
+    "name": "Tencent AI",
+    "url": "https://aistudio.tencent.ai",
+    "extractor": [".all-chatlist-wrapper"]
+  },
+  {
+    "name": "OpenRouter",
+    "url": "https://openrouter.ai",
+    "extractor": [".h-full.bg-card"]
+  },
+  {
+    "name": "Poolside",
+    "url": "https://chat.poolside.ai",
+    "extractor": []
+  },
+  {
+    "name": "Mistral",
+    "url": "https://console.mistral.ai",
+    "extractor": [".bg-sidebar.relative"]
+  },
+  {
+    "name": "Liquid AI",
+    "url": "https://playground.liquid.ai",
+    "extractor": []
+  },
+  {
+    "name": "HuggingFace",
+    "url": "https://huggingface.co",
+    "extractor": []
+  }
+]
