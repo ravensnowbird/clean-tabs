@@ -1,0 +1,66 @@
+[
+  {
+    "domain": "https://chatgpt.com",
+    "extractor": [".group\\/side-pane-shell-host"]
+  },
+  {
+    "domain": "https://claude.ai",
+    "extractor": [".dframe-pane.dframe-pane-primary"]
+  },
+  {
+    "domain": "https://gemini.google.com",
+    "extractor": [".main-chat-area", ".chat-container"]
+  },
+  {
+    "domain": "https://www.meta.ai",
+    "extractor": [".x78zum5.x1iyjqo2.x1n2onr6.x2lah0s"]
+  },
+  {
+    "domain": "https://chat.deepseek.com",
+    "extractor": [".chat-message-list", ".conversation-container"]
+  },
+  {
+    "domain": "https://aistudio.xiaomimimo.com",
+    "extractor": [".chat-container", ".main-content"]
+  },
+  {
+    "domain": "https://chat.z.ai",
+    "extractor": [".chat-messages", ".message-list"]
+  },
+  {
+    "domain": "https://ai.byteplus.com",
+    "extractor": [".playground-chat", ".conversation-panel"]
+  },
+  {
+    "domain": "https://www.apodex.ai",
+    "extractor": [".chat-window", ".message-container"]
+  },
+  {
+    "domain": "https://jp-tok.dataplatform.cloud.ibm.com",
+    "extractor": [".prompt-container", ".chat-interface"]
+  },
+  {
+    "domain": "https://aistudio.tencent.ai",
+    "extractor": [".chat-main", ".conversation-area"]
+  },
+  {
+    "domain": "https://openrouter.ai",
+    "extractor": [".chat-container", ".messages-wrapper"]
+  },
+  {
+    "domain": "https://chat.poolside.ai",
+    "extractor": [".chat-messages", ".conversation-view"]
+  },
+  {
+    "domain": "https://console.mistral.ai",
+    "extractor": [".bg-sidebar.relative"]
+  },
+  {
+    "domain": "https://playground.liquid.ai",
+    "extractor": [".chat-panel", ".conversation-space"]
+  },
+  {
+    "domain": "https://huggingface.co",
+    "extractor": [".conversation-container", ".chat-messages"]
+  }
+]
