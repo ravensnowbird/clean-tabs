@@ -1,66 +1,82 @@
 [
   {
-    "domain": "https://chatgpt.com",
+    "name": "ChatGPT",
+    "url": "https://chatgpt.com",
     "extractor": [".group\\/side-pane-shell-host"]
   },
   {
-    "domain": "https://claude.ai",
+    "name": "Claude",
+    "url": "https://claude.ai",
     "extractor": [".dframe-pane.dframe-pane-primary"]
   },
   {
-    "domain": "https://gemini.google.com",
-    "extractor": [".main-chat-area", ".chat-container"]
+    "name": "Gemini",
+    "url": "https://gemini.google.com",
+    "extractor": [".main-content"]
   },
   {
-    "domain": "https://www.meta.ai",
-    "extractor": [".x78zum5.x1iyjqo2.x1n2onr6.x2lah0s"]
+    "name": "Meta",
+    "url": "https://www.meta.ai",
+    "extractor": ["main"]
   },
   {
-    "domain": "https://chat.deepseek.com",
-    "extractor": [".chat-message-list", ".conversation-container"]
+    "name": "DeepSeek",
+    "url": "https://chat.deepseek.com",
+    "extractor": []
   },
   {
-    "domain": "https://aistudio.xiaomimimo.com",
-    "extractor": [".chat-container", ".main-content"]
+    "name": "Xiaomimimo",
+    "url": "https://aistudio.xiaomimimo.com",
+    "extractor": [".bg-mimo-bg-concent-base"]
   },
   {
-    "domain": "https://chat.z.ai",
-    "extractor": [".chat-messages", ".message-list"]
+    "name": "Z AI",
+    "url": "https://chat.z.ai",
+    "extractor": ["#chat-container"]
   },
   {
-    "domain": "https://ai.byteplus.com",
-    "extractor": [".playground-chat", ".conversation-panel"]
+    "name": "BytePlus",
+    "url": "https://ai.byteplus.com",
+    "extractor": []
   },
   {
-    "domain": "https://www.apodex.ai",
-    "extractor": [".chat-window", ".message-container"]
+    "name": "Apodex",
+    "url": "https://www.apodex.ai",
+    "extractor": [".font-reading"]
   },
   {
-    "domain": "https://jp-tok.dataplatform.cloud.ibm.com",
-    "extractor": [".prompt-container", ".chat-interface"]
+    "name": "IBM Watson",
+    "url": "https://jp-tok.dataplatform.cloud.ibm.com",
+    "extractor": []
   },
   {
-    "domain": "https://aistudio.tencent.ai",
-    "extractor": [".chat-main", ".conversation-area"]
+    "name": "Tencent AI",
+    "url": "https://aistudio.tencent.ai",
+    "extractor": [".all-chatlist-wrapper"]
   },
   {
-    "domain": "https://openrouter.ai",
-    "extractor": [".chat-container", ".messages-wrapper"]
+    "name": "OpenRouter",
+    "url": "https://openrouter.ai",
+    "extractor": [".h-full.bg-card"]
   },
   {
-    "domain": "https://chat.poolside.ai",
-    "extractor": [".chat-messages", ".conversation-view"]
+    "name": "Poolside",
+    "url": "https://chat.poolside.ai",
+    "extractor": []
   },
   {
-    "domain": "https://console.mistral.ai",
+    "name": "Mistral",
+    "url": "https://console.mistral.ai",
     "extractor": [".bg-sidebar.relative"]
   },
   {
-    "domain": "https://playground.liquid.ai",
-    "extractor": [".chat-panel", ".conversation-space"]
+    "name": "Liquid AI",
+    "url": "https://playground.liquid.ai",
+    "extractor": []
   },
   {
-    "domain": "https://huggingface.co",
-    "extractor": [".conversation-container", ".chat-messages"]
+    "name": "HuggingFace",
+    "url": "https://huggingface.co",
+    "extractor": []
   }
 ]
