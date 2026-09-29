@@ -193,6 +193,12 @@
         color: #a6a49e;
       }
 
+
+      .import-status { margin-top: 10px; font-size: 12px; color: #8a8880; display: none; }
+      .import-status.show { display: block; }
+      .import-status.error { color: #b3261e; }
+      #import-modal .modal-content { padding: 16px; }
+
       /* --- Index Log table --- */
       .log-table-wrap { overflow-x: auto; }
       .log-table { width: 100%; border-collapse: collapse; font-size: 12px; white-space: nowrap; }
@@ -325,7 +331,7 @@
     <div id="sidebar-footer">
       <div class="footer-row">
         <button id="bug-report-btn" class="secondary">Report a Bug</button>
-        <button id="donate-btn" class="secondary">Donate</button>
+        <button id="import-btn" class="secondary">Import</button>
       </div>
       <div class="footer-row">
         <button id="index-log-btn" class="secondary">Index Log</button>
@@ -394,6 +400,29 @@
       </div>
     </div>
   </div>
+
+  <!-- Import Tabs modal -->
+  <div id="import-modal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="import-title"
+         style="width: min(520px, calc(100vw - 40px));">
+      <div class="modal-header">
+        <h3 id="import-title">Import Tabs</h3>
+        <button class="modal-close" data-close-modal aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-content">
+          <input type="text" id="import-url" placeholder="https://raw.githubusercontent.com/.../tabs.json" autocomplete="off" />
+          <select id="import-category"></select>
+          <div id="import-status" class="import-status"></div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <span class="hint">JSON shape: [{ "name", "url", "extractor": [...] }]</span><br>
+        <span class="hint"><a target="_blank" href="https://raw.githubusercontent.com/ravensnowbird/clean-tabs/refs/heads/main/default-ai-tabs.json">Sample</a></span>
+        <button id="import-submit-btn">Import</button>
+      </div>
+    </div>
+  </div>
   <script>
     // ---- State ----
     const DEFAULT_CATEGORY = 'Uncategorized';
@@ -441,7 +470,12 @@
 
     // Footer buttons
     const bugReportBtn = document.getElementById('bug-report-btn');
-    const donateBtn = document.getElementById('donate-btn');
+    const importBtn = document.getElementById('import-btn');
+    const importModal = document.getElementById('import-modal');
+    const importUrl = document.getElementById('import-url');
+    const importCategory = document.getElementById('import-category');
+    const importStatus = document.getElementById('import-status');
+    const importSubmitBtn = document.getElementById('import-submit-btn');
     const indexLogBtn = document.getElementById('index-log-btn');
     const knownExtractorsBtn = document.getElementById('known-extractors-btn');
     const clearLogBtn = document.getElementById('clear-log-btn');
@@ -449,8 +483,7 @@
     const knownExtractorsModal = document.getElementById('known-extractors-modal');
 
     // TODO: replace these with your real links.
-    const GITHUB_ISSUES_URL = 'https://github.com/YOUR_USERNAME/YOUR_REPO/issues/new';
-    const DONATE_URL = 'https://github.com/sponsors/YOUR_USERNAME';
+    const GITHUB_ISSUES_URL = 'https://github.com/ravensnowbird/clean-tabs/issues/new';
 
     // Mirror of the INDEX_SELECTORS map from the main process (used as a fallback if the
     // bridge does not expose them).
@@ -883,14 +916,73 @@
         }
       });
     }
-    if (donateBtn) {
-      donateBtn.addEventListener('click', () => {
-        if (window.api?.openExternal) {
-          window.api.openExternal(DONATE_URL);
-        } else {
-          window.open(DONATE_URL, '_blank', 'noopener,noreferrer');
+    function refreshImportCategories() {
+      importCategory.innerHTML = optionsHtml();
+      importCategory.value = DEFAULT_CATEGORY;
+    }
+    function setImportStatus(msg, isError = false) {
+      importStatus.textContent = msg || '';
+      importStatus.classList.toggle('show', !!msg);
+      importStatus.classList.toggle('error', !!isError);
+    }
+    async function runImport() {
+      const url = importUrl.value.trim();
+      const category = importCategory.value || DEFAULT_CATEGORY;
+      if (!url) return;
+      setImportStatus('Fetching\u2026');
+      importSubmitBtn.disabled = true;
+      try {
+        // Prefer a main-process fetch if the bridge exposes one (avoids renderer CSP issues);
+        // otherwise fall back to a plain renderer fetch.
+        const data = window.api.importTabsFromUrl
+          ? await window.api.importTabsFromUrl(url)
+          : await (async () => {
+              const res = await fetch(url, { cache: 'no-store' });
+              if (!res.ok) throw new Error('HTTP ' + res.status);
+              return res.json();
+            })();
+
+        if (!Array.isArray(data)) throw new Error('Expected a JSON array at the top level');
+        if (!categories.includes(category)) addCategory(category);
+
+        let added = 0;
+        for (const entry of data) {
+          if (!entry || !entry.url) continue;
+          const extractor = Array.isArray(entry.extractor)
+            ? entry.extractor.filter(Boolean).join(', ')
+            : (entry.extractor || '');
+          window.api.createTab({
+            url: String(entry.url).trim(),
+            name: (entry.name || '').trim(),
+            category,
+            extractor: extractor || null
+          });
+          added++;
         }
+        setImportStatus(added
+          ? `Imported ${added} tab${added === 1 ? '' : 's'} into "${category}".`
+          : 'No valid entries found in that file.',
+          !added);
+      } catch (err) {
+        setImportStatus('Import failed: ' + (err.message || err), true);
+      } finally {
+        importSubmitBtn.disabled = false;
+      }
+    }
+
+    if (importBtn) {
+      importBtn.addEventListener('click', () => {
+        refreshImportCategories();
+        setImportStatus('');
+        importUrl.value = '';
+        openModal('import-modal');
+        importUrl.focus();
       });
+    }
+    if (importSubmitBtn) importSubmitBtn.addEventListener('click', runImport);
+    // if (importUrl) importUrl.addEventListener('keydown', e => { if (e.key === 'Enter') runImport(); });
+    if (importModal) {
+      importModal.addEventListener('click', (e) => { if (e.target === importModal) closeModal('import-modal'); });
     }
     if (indexLogBtn) {
       indexLogBtn.addEventListener('click', () => { renderIndexLogTable(); openModal('index-log-modal'); });

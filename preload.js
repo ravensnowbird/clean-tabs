@@ -50,4 +50,6 @@ contextBridge.exposeInMainWorld('api', {
   onIndexResult: (cb) => {
     ipcRenderer.on('index-result', (event, data) => cb(data));
   },
+
+  importTabsFromUrl: (url) => ipcRenderer.invoke('import-tabs-from-url', url),
 });

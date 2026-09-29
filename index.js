@@ -294,10 +294,20 @@ function createTabView(tabId) {
 
   // Handle favicon updates
   view.webContents.on('page-favicon-updated', (e, favicons) => {
+    // if (favicons.length > 0) {
+    //   tab.favicon = favicons[0];
+    //   db.prepare('UPDATE tabs SET favicon = ? WHERE id = ?').run(favicons[0], tabId);
+    //   mainWindow.webContents.send('tab-updated', { id: tabId, favicon: favicons[0] });
+    // }
     if (favicons.length > 0) {
-      tab.favicon = favicons[0];
-      db.prepare('UPDATE tabs SET favicon = ? WHERE id = ?').run(favicons[0], tabId);
-      mainWindow.webContents.send('tab-updated', { id: tabId, favicon: favicons[0] });
+      const faviconWithExtension = favicons.find(f => {
+        const parts = f.split('.');
+        return parts.length > 1 && parts[parts.length - 1].match(/^[a-zA-Z0-9]+$/);
+      });
+      const favicon = faviconWithExtension || favicons[0];
+      tab.favicon = favicon;
+      db.prepare('UPDATE tabs SET favicon = ? WHERE id = ?').run(favicon, tabId);
+      mainWindow.webContents.send('tab-updated', { id: tabId, favicon: favicon });
     }
   });
 
@@ -560,6 +570,12 @@ ipcMain.handle('search', (event, query) => {
     // Ignore FTS syntax errors from partial/in-progress queries
     return [];
   }
+});
+
+ipcMain.handle('import-tabs-from-url', async (_e, url) => {
+  const res = await fetch(url, { redirect: 'follow' });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
 });
 
 app.whenReady().then(() => {
